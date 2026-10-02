@@ -20,7 +20,9 @@ export const Login = () => {
     try {
       const { data } = await api.post('/auth/login', { email, password });
       login(data.token, data.user);
-      navigate(data.user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard');
+      navigate(data.user.role === 'PRINCIPAL'
+        ? '/principal/dashboard'
+        : data.user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Failed to login. Please try again.');
     } finally {

@@ -16,6 +16,9 @@ const verifyToken = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
     }
+    if (user.role === 'TEACHER' && user.approvalStatus !== 'APPROVED') {
+      return res.status(403).json({ error: 'Teacher account is not approved' });
+    }
 
     req.user = user;
     next();

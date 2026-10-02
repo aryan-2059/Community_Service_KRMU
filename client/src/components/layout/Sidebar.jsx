@@ -1,29 +1,48 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { BookOpen, LayoutDashboard, Users, FileText, CheckCircle, GraduationCap, LogOut } from 'lucide-react';
+import {
+  BookOpen, LayoutDashboard, Users, FileText, CheckCircle,
+  GraduationCap, LogOut, Clapperboard, CalendarDays,
+  ShieldCheck, School, UserCheck
+} from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 export const Sidebar = () => {
-  const { user, isTeacher, isStudent, logout } = useAuth();
+  const { user, isTeacher, isStudent, isPrincipal, logout } = useAuth();
 
   const teacherLinks = [
     { name: 'Dashboard', to: '/teacher/dashboard', icon: LayoutDashboard },
     { name: 'Classrooms', to: '/teacher/classrooms', icon: Users },
     { name: 'Quiz Builder', to: '/teacher/quizzes/new', icon: FileText },
+    { name: 'Revision Studio', to: '/teacher/revision', icon: Clapperboard },
+    { name: 'Meetings', to: '/meetings', icon: CalendarDays },
   ];
 
   const studentLinks = [
     { name: 'Dashboard', to: '/student/dashboard', icon: LayoutDashboard },
     { name: 'My Classrooms', to: '/student/classrooms', icon: GraduationCap },
     { name: 'Question Tracker', to: '/student/tracker', icon: CheckCircle },
+    { name: 'Revision Feed', to: '/student/revision', icon: Clapperboard },
+    { name: 'Meetings', to: '/meetings', icon: CalendarDays },
   ];
 
-  const links = isTeacher ? teacherLinks : isStudent ? studentLinks : [];
+  const principalLinks = [
+    { name: 'Dashboard', to: '/principal/dashboard', icon: ShieldCheck },
+    { name: 'Teachers', to: '/principal/teachers', icon: UserCheck },
+    { name: 'Students', to: '/principal/students', icon: GraduationCap },
+    { name: 'Classrooms', to: '/principal/classrooms', icon: School },
+    { name: 'Meetings', to: '/meetings', icon: CalendarDays },
+  ];
+
+  const links = isPrincipal ? principalLinks : isTeacher ? teacherLinks : isStudent ? studentLinks : [];
 
   const getInitials = (name) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
   };
+
+  const roleBadge = isPrincipal ? 'Principal Portal' : isTeacher ? 'Teacher Portal' : 'Student Portal';
+  const roleColor = isPrincipal ? 'text-teal-400' : isTeacher ? 'text-indigo-400' : 'text-violet-400';
 
   return (
     <div className="w-64 bg-[#0f172a] text-white h-screen fixed left-0 top-0 flex flex-col z-20">
@@ -37,13 +56,13 @@ export const Sidebar = () => {
 
       {/* Role badge */}
       <div className="px-6 py-3">
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-          {isTeacher ? 'Teacher Portal' : 'Student Portal'}
+        <span className={`text-[10px] font-semibold uppercase tracking-widest ${roleColor}`}>
+          {roleBadge}
         </span>
       </div>
 
       {/* Nav links */}
-      <nav className="flex-1 px-3 flex flex-col gap-1">
+      <nav className="flex-1 px-3 flex flex-col gap-1 overflow-y-auto">
         {links.map((link) => (
           <NavLink
             key={link.to}

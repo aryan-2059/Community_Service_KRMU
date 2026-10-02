@@ -12,7 +12,10 @@ model User {
   name         String
   email        String             @unique
   passwordHash String
-  role         String             // TEACHER | STUDENT
+  role         String             // PRINCIPAL | TEACHER | STUDENT
+  approvalStatus String           @default("APPROVED")
+  approvedAt   DateTime?
+  approvedById String?
   avatarUrl    String?
   createdAt    DateTime           @default(now())
   
@@ -22,6 +25,11 @@ model User {
   assignments       Assignment[]
   quizAttempts      QuizAttempt[]
   studentAnswers    StudentQuestionAnswer[]
+  revisionPosts     RevisionPost[]        @relation("RevisionPostAuthor")
+  revisionActions   RevisionInteraction[]
+  revisionReviews   RevisionReview[]
+  meetingsCreated   Meeting[]           @relation("MeetingCreator")
+  meetingInvites    Meeting[]           @relation("MeetingRecipient")
 
   @@map("users")
 }
@@ -38,6 +46,7 @@ model Classroom {
   enrollments ClassEnrollment[]
   subjects    Subject[]
   assignments Assignment[]
+  meetings     Meeting[]
 
   @@map("classrooms")
 }
@@ -64,6 +73,7 @@ model Subject {
   classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   questions   Question[]
   quizzes     Quiz[]
+  revisionPosts RevisionPost[]
 
   @@map("subjects")
 }
@@ -165,4 +175,81 @@ model StudentQuestionAnswer {
   question       Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@map("student_question_answers")
+}
+
+model RevisionPost {
+  id          String   @id @default(uuid())
+  subjectId   String
+  createdById String
+  title       String
+  content     String   @default("")
+  mediaUrl    String?
+  mediaType   String?
+  createdAt   DateTime @default(now())
+
+  subject     Subject               @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdBy   User                  @relation("RevisionPostAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+  interactions RevisionInteraction[]
+  reviews     RevisionReview[]
+
+  @@index([subjectId, createdAt])
+  @@map("revision_posts")
+}
+
+model RevisionInteraction {
+  id            String   @id @default(uuid())
+  postId        String
+  studentId     String
+  liked         Boolean  @default(false)
+  saved         Boolean  @default(false)
+  priority      Boolean  @default(false)
+  understanding String?
+  updatedAt     DateTime @updatedAt
+
+  post          RevisionPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  student       User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, studentId])
+  @@map("revision_interactions")
+}
+
+model RevisionReview {
+  id        String   @id @default(uuid())
+  postId    String
+  studentId String
+  message   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post      RevisionPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  student   User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, studentId])
+  @@map("revision_reviews")
+}
+
+model Meeting {
+  id            String   @id @default(uuid())
+  createdById   String
+  recipientId   String?
+  classroomId   String?
+  audience      String
+  title         String
+  description   String   @default("")
+  status        String   @default("SCHEDULED")
+  scheduledAt   DateTime?
+  preferredAt   DateTime?
+  durationMins  Int      @default(30)
+  location      String?
+  meetingUrl    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  createdBy     User      @relation("MeetingCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  recipient     User?     @relation("MeetingRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  classroom     Classroom? @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledAt])
+  @@index([classroomId, scheduledAt])
+  @@map("meetings")
 }

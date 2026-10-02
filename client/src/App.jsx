@@ -6,6 +6,7 @@ import { Spinner } from './components/ui';
 // Auth Pages
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
+import { PrincipalLogin } from './pages/auth/PrincipalLogin';
 
 // Teacher Pages
 import { TeacherDashboard } from './pages/teacher/TeacherDashboard';
@@ -22,12 +23,27 @@ import { QuizPlayer } from './pages/student/QuizPlayer';
 import { ResultReview } from './pages/student/ResultReview';
 import { QuestionTracker } from './pages/student/QuestionTracker';
 
+// Shared Pages
+import { RevisionFeed } from './pages/RevisionFeed';
+import { MeetingHub } from './pages/MeetingHub';
+
+// Principal Pages
+import { PrincipalDashboard } from './pages/principal/PrincipalDashboard';
+import { TeacherManagement } from './pages/principal/TeacherManagement';
+import { StudentManagement } from './pages/principal/StudentManagement';
+import { ClassroomTracker } from './pages/principal/ClassroomTracker';
+
+const homeForRole = (role) =>
+  role === 'PRINCIPAL' ? '/principal/dashboard'
+  : role === 'TEACHER' ? '/teacher/dashboard'
+  : '/student/dashboard';
+
 const ProtectedRoute = ({ children, allowedRole }) => {
   const { isAuthenticated, user, loading } = useAuth();
   if (loading) return <div className="h-screen flex items-center justify-center bg-[#f8fafc]"><Spinner size="lg" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (allowedRole && user.role !== allowedRole) {
-    return <Navigate to={user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard'} replace />;
+    return <Navigate to={homeForRole(user.role)} replace />;
   }
   return children;
 };
@@ -36,32 +52,48 @@ const RootRedirect = () => {
   const { isAuthenticated, user, loading } = useAuth();
   if (loading) return <div className="h-screen flex items-center justify-center bg-[#f8fafc]"><Spinner size="lg" /></div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return <Navigate to={user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard'} replace />;
+  return <Navigate to={homeForRole(user.role)} replace />;
 };
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<RootRedirect />} />
+
+      {/* ── Public Auth ── */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* Teacher Routes */}
+      {/* ── Principal-only login (separate from /login) ── */}
+      <Route path="/principal-login" element={<PrincipalLogin />} />
+
+      {/* ── Principal Routes ── */}
+      <Route path="/principal/dashboard" element={<ProtectedRoute allowedRole="PRINCIPAL"><PrincipalDashboard /></ProtectedRoute>} />
+      <Route path="/principal/teachers" element={<ProtectedRoute allowedRole="PRINCIPAL"><TeacherManagement /></ProtectedRoute>} />
+      <Route path="/principal/students" element={<ProtectedRoute allowedRole="PRINCIPAL"><StudentManagement /></ProtectedRoute>} />
+      <Route path="/principal/classrooms" element={<ProtectedRoute allowedRole="PRINCIPAL"><ClassroomTracker /></ProtectedRoute>} />
+
+      {/* ── Teacher Routes ── */}
       <Route path="/teacher/dashboard" element={<ProtectedRoute allowedRole="TEACHER"><TeacherDashboard /></ProtectedRoute>} />
       <Route path="/teacher/classrooms" element={<ProtectedRoute allowedRole="TEACHER"><Classrooms /></ProtectedRoute>} />
       <Route path="/teacher/classrooms/:classroomId" element={<ProtectedRoute allowedRole="TEACHER"><ClassroomDetail /></ProtectedRoute>} />
       <Route path="/teacher/quizzes/new" element={<ProtectedRoute allowedRole="TEACHER"><QuizBuilder /></ProtectedRoute>} />
       <Route path="/teacher/analytics/:quizId" element={<ProtectedRoute allowedRole="TEACHER"><QuizAnalytics /></ProtectedRoute>} />
+      <Route path="/teacher/revision" element={<ProtectedRoute allowedRole="TEACHER"><RevisionFeed /></ProtectedRoute>} />
 
-      {/* Student Routes */}
+      {/* ── Student Routes ── */}
       <Route path="/student/dashboard" element={<ProtectedRoute allowedRole="STUDENT"><StudentDashboard /></ProtectedRoute>} />
       <Route path="/student/classrooms" element={<ProtectedRoute allowedRole="STUDENT"><MyClassrooms /></ProtectedRoute>} />
       <Route path="/student/subjects/:subjectId" element={<ProtectedRoute allowedRole="STUDENT"><SubjectHub /></ProtectedRoute>} />
       <Route path="/student/quiz/:assignmentId" element={<ProtectedRoute allowedRole="STUDENT"><QuizPlayer /></ProtectedRoute>} />
       <Route path="/student/results/:attemptId" element={<ProtectedRoute allowedRole="STUDENT"><ResultReview /></ProtectedRoute>} />
       <Route path="/student/tracker" element={<ProtectedRoute allowedRole="STUDENT"><QuestionTracker /></ProtectedRoute>} />
+      <Route path="/student/revision" element={<ProtectedRoute allowedRole="STUDENT"><RevisionFeed /></ProtectedRoute>} />
 
-      {/* 404 */}
+      {/* ── Shared (all logged-in roles) ── */}
+      <Route path="/meetings" element={<ProtectedRoute><MeetingHub /></ProtectedRoute>} />
+
+      {/* ── 404 ── */}
       <Route path="*" element={
         <div className="h-screen flex flex-col items-center justify-center bg-[#f8fafc]">
           <h1 className="text-6xl font-bold text-[#0f172a] mb-4">404</h1>

@@ -8,6 +8,7 @@ import { Button } from '../../components/ui';
 export const Register = () => {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '', role: 'STUDENT' });
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setNotice('');
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -22,10 +24,16 @@ export const Register = () => {
     setLoading(true);
     try {
       const { data } = await api.post('/auth/register', formData);
+      if (!data.token) {
+        setNotice(data.message || 'Your account is awaiting approval.');
+        return;
+      }
       login(data.token, data.user);
-      navigate(data.user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard');
+      navigate(data.user.role === 'PRINCIPAL'
+        ? '/principal/dashboard'
+        : data.user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to register. Please try again.');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to register. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -40,19 +48,20 @@ export const Register = () => {
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && <div className="text-red-600 text-sm text-center bg-red-50 p-2 rounded">{error}</div>}
+          {notice && <div role="status" className="text-emerald-800 text-sm text-center bg-emerald-50 p-3 rounded">{notice} You can sign in after approval.</div>}
           
           <div className="flex p-1 bg-slate-100 rounded-lg">
             <button
               type="button"
               className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${formData.role === 'TEACHER' ? 'bg-white shadow-sm text-brand' : 'text-slate-500 hover:text-slate-700'}`}
-              onClick={() => setFormData(p => ({ ...p, role: 'TEACHER' }))}
+              onClick={() => { setFormData(p => ({ ...p, role: 'TEACHER' })); setNotice(''); }}
             >
               Teacher
             </button>
             <button
               type="button"
               className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${formData.role === 'STUDENT' ? 'bg-white shadow-sm text-brand' : 'text-slate-500 hover:text-slate-700'}`}
-              onClick={() => setFormData(p => ({ ...p, role: 'STUDENT' }))}
+              onClick={() => { setFormData(p => ({ ...p, role: 'STUDENT' })); setNotice(''); }}
             >
               Student
             </button>
@@ -77,6 +86,7 @@ export const Register = () => {
             </div>
           </div>
           <Button type="submit" className="w-full" loading={loading}>Register</Button>
+          {formData.role === 'TEACHER' && <p className="text-xs text-slate-500 text-center">Teacher accounts need principal approval before sign-in.</p>}
           <div className="text-sm text-center">
             <Link to="/login" className="font-medium text-brand hover:text-brand-dark">Already have an account? Sign in</Link>
           </div>

@@ -5,6 +5,7 @@ const prisma = require('../lib/prisma');
 const { verifyToken } = require('../middleware/auth');
 
 const router = express.Router();
+const publicUser = ({ passwordHash, ...user }) => user;
 
 router.post('/register', async (req, res, next) => {
   try {
@@ -28,8 +29,15 @@ router.post('/register', async (req, res, next) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { name, email, passwordHash, role }
+      data: { name: name.trim(), email: email.trim().toLowerCase(), passwordHash, role, approvalStatus: role === 'TEACHER' ? 'PENDING' : 'APPROVED' }
     });
+
+    if (role === 'TEACHER') {
+      return res.status(202).json({
+        message: 'Your teacher account is awaiting principal approval.',
+        user: publicUser(user)
+      });
+    }
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, name: user.name },
@@ -37,7 +45,7 @@ router.post('/register', async (req, res, next) => {
       { expiresIn: '7d' }
     );
 
-    res.status(201).json({ user, token });
+    res.status(201).json({ user: publicUser(user), token });
   } catch (error) {
     next(error);
   }
@@ -64,13 +72,20 @@ router.post('/login', async (req, res, next) => {
       throw new Error('Invalid credentials');
     }
 
+    if (user.role === 'TEACHER' && user.approvalStatus !== 'APPROVED') {
+      res.status(403);
+      throw new Error(user.approvalStatus === 'REJECTED'
+        ? 'Your teacher account was not approved. Contact your principal.'
+        : 'Your teacher account is awaiting principal approval.');
+    }
+
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, name: user.name },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    res.json({ user, token });
+    res.json({ user: publicUser(user), token });
   } catch (error) {
     next(error);
   }
@@ -79,7 +94,7 @@ router.post('/login', async (req, res, next) => {
 router.get('/me', verifyToken, async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-    res.json(user);
+    res.json(publicUser(user));
   } catch (error) {
     next(error);
   }

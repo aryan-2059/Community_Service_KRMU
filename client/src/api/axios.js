@@ -22,6 +22,11 @@ api.interceptors.response.use(
       localStorage.removeItem('reelearn_token');
       window.location.href = '/login';
     }
+    if (!error.response || error.response.status >= 500) {
+      window.dispatchEvent(new CustomEvent('reelearn:connection-error', {
+        detail: { offline: !navigator.onLine }
+      }));
+    }
     return Promise.reject(error);
   }
 );

@@ -14,3 +14,5 @@ on persistent or multi-instance data.
 Run `npm run seed --prefix server` to reset the JSON file and load sample data.
 Run `npm run principal:create --prefix server` to create a principal using
 `PRINCIPAL_EMAIL`, `PRINCIPAL_PASSWORD`, and optionally `PRINCIPAL_NAME`.
+For Vercel principal setup, configure these as API project environment
+variables; see [PRINCIPAL_SETUP.md](./PRINCIPAL_SETUP.md).

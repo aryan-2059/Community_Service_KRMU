@@ -13,6 +13,69 @@
 			],
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Build principal login fix",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--prefix",
+				"client"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build server API",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--prefix",
+				"server"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Test principal bootstrap",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"test",
+				"--prefix",
+				"server"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Run principal and server tests",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"test",
+				"--prefix",
+				"server"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build updated API server",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--prefix",
+				"server"
+			],
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }

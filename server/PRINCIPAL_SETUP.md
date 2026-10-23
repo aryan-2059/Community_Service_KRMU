@@ -1,21 +1,36 @@
 # Principal account setup
 
-Teacher accounts created through registration remain pending until a principal approves them. Principal accounts cannot be created through public registration.
+Principal credentials are secrets: do not commit them to source control or send
+them in chat.
 
-After installing server dependencies, create the first principal from PowerShell.
-The current app stores records in its JSON store; this command creates the
-principal in the store selected by `JSON_STORE_PATH`.
+## Vercel deployment
 
-```powershell
-Push-Location server
-$env:PRINCIPAL_EMAIL = "principal@your-school.edu"
-$securePassword = Read-Host "Principal password (12+ characters)" -AsSecureString
-$env:PRINCIPAL_PASSWORD = [System.Net.NetworkCredential]::new("", $securePassword).Password
-npm run principal:create
-Remove-Item Env:PRINCIPAL_EMAIL, Env:PRINCIPAL_PASSWORD
-Pop-Location
-```
+In the Vercel project that hosts the Express API, open **Settings → Environment
+Variables** and add these variables for the environments where the API is
+deployed:
 
-The command only creates a new account; it refuses to change an existing account. Sign in with that account to approve teachers, review class enrollment and quiz records, and manage school meetings.
+- `JWT_SECRET`: a long, random signing secret.
+- `PRINCIPAL_EMAIL`: the principal's email address.
+- `PRINCIPAL_PASSWORD`: a new, unique password with at least 12 characters.
+- `PRINCIPAL_NAME`: optional display name.
 
-The principal overview reports quiz attempts and scores currently recorded by the app. Attendance and other offline activity are not tracked.
+Redeploy the API after adding or changing these variables. On the first
+successful principal sign-in, the API creates the configured account if it
+doesn't already exist. The principal then signs in at `/principal-login`.
+
+If the configured email already belongs to a non-principal account, change the
+environment variable to a different email. Existing principal accounts are not
+silently overwritten when the environment password changes.
+
+## Local development
+
+Copy `.env.example` to `.env` in the `server` directory, then replace the
+principal placeholders and `JWT_SECRET` with local values. `.env` is ignored by
+Git and must not be committed.
+
+## Storage warning
+
+The current JSON store is temporary and instance-local on Vercel. The
+environment-configured principal can be provisioned in each running function,
+but other app records are not durable or shared across instances. Connect a
+shared database before using the application for persistent school records.

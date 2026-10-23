@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { verifyToken } = require('./middleware/auth');
 const errorHandler = require('./middleware/error');
+const store = require('./lib/store');
 
 const authRouter = require('./routes/auth');
 const classroomsRouter = require('./routes/classrooms');
@@ -58,8 +59,13 @@ app.use('/api/principal', verifyToken, principalRouter);
 app.use('/api/meetings', verifyToken, meetingsRouter);
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+app.get('/api/health', async (req, res, next) => {
+  try {
+    const health = await store.$health();
+    res.json({ status: 'ok', ...health });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Error handling

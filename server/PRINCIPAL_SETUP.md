@@ -13,6 +13,8 @@ deployed:
 - `PRINCIPAL_EMAIL`: the principal's email address.
 - `PRINCIPAL_PASSWORD`: a new, unique password with at least 12 characters.
 - `PRINCIPAL_NAME`: optional display name.
+- `DATABASE_URL`: the PostgreSQL connection URL from your database provider.
+  Prefer its pooled/serverless connection string if available.
 
 Redeploy the API after adding or changing these variables. On the first
 successful principal sign-in, the API creates the configured account if it
@@ -30,7 +32,6 @@ Git and must not be committed.
 
 ## Storage warning
 
-The current JSON store is temporary and instance-local on Vercel. The
-environment-configured principal can be provisioned in each running function,
-but other app records are not durable or shared across instances. Connect a
-shared database before using the application for persistent school records.
+The API uses PostgreSQL for shared app data when `DATABASE_URL` is set. The
+previous Vercel `/tmp` JSON data is not durable and cannot be migrated
+automatically. Users and other records from that store may need to be recreated.

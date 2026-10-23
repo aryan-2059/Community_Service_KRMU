@@ -28,16 +28,23 @@ async function ensureConfiguredPrincipal(email) {
 
       const passwordHash = await bcrypt.hash(password, 12);
       const id = `principal-${crypto.createHash('sha256').update(configuredEmail).digest('hex')}`;
-      return store.user.create({
-        data: {
-          id,
-          name: process.env.PRINCIPAL_NAME?.trim() || 'School Principal',
-          email: configuredEmail,
-          passwordHash,
-          role: 'PRINCIPAL',
-          approvalStatus: 'APPROVED'
-        }
-      });
+      try {
+        return await store.user.create({
+          data: {
+            id,
+            name: process.env.PRINCIPAL_NAME?.trim() || 'School Principal',
+            email: configuredEmail,
+            passwordHash,
+            role: 'PRINCIPAL',
+            approvalStatus: 'APPROVED'
+          }
+        });
+      } catch (error) {
+        if (error.code !== 'P2002') throw error;
+        const concurrentlyCreated = await store.user.findUnique({ where: { email: configuredEmail } });
+        if (concurrentlyCreated?.role === 'PRINCIPAL') return concurrentlyCreated;
+        throw error;
+      }
     })().catch(error => {
       provisioning = null;
       throw error;

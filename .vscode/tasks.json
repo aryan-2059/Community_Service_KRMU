@@ -76,6 +76,44 @@
 			],
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Add PostgreSQL driver",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"install",
+				"pg",
+				"--prefix",
+				"server"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Test PostgreSQL persistence adapter",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"test",
+				"--prefix",
+				"server"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build PostgreSQL API",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build",
+				"--prefix",
+				"server"
+			],
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }

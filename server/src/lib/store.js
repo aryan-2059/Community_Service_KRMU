@@ -2,6 +2,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const { Pool } = require('pg');
 
 const models = [
   'user', 'classroom', 'classEnrollment', 'subject', 'question', 'quiz',
@@ -145,7 +146,16 @@ const defaults = {
 
 let state;
 let loading;
+let databaseInitialization;
 let writeQueue = Promise.resolve();
+const databasePool = process.env.DATABASE_URL
+  ? new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 2,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 10000
+  })
+  : null;
 
 const clone = value => JSON.parse(JSON.stringify(value));
 const valueOf = value => value instanceof Date ? value.toISOString() : value;
@@ -162,6 +172,37 @@ const getUniqueFields = where => {
 };
 
 async function load() {
+  if (databasePool) {
+    if (!databaseInitialization) {
+      databaseInitialization = (async () => {
+        await databasePool.query(`
+          CREATE TABLE IF NOT EXISTS reelearn_state (
+            id SMALLINT PRIMARY KEY CHECK (id = 1),
+            data JSONB NOT NULL
+          )
+        `);
+        await databasePool.query(
+          'INSERT INTO reelearn_state (id, data) VALUES (1, $1::jsonb) ON CONFLICT (id) DO NOTHING',
+          [JSON.stringify(emptyData())]
+        );
+      })().catch(error => {
+        databaseInitialization = null;
+        throw error;
+      });
+    }
+    await databaseInitialization;
+    const { rows } = await databasePool.query('SELECT data FROM reelearn_state WHERE id = 1');
+    if (!rows[0]) throw new Error('PostgreSQL application state row is missing');
+    state = { ...emptyData(), ...rows[0].data };
+    for (const model of models) {
+      if (!Array.isArray(state[model])) throw new Error(`Invalid PostgreSQL store: "${model}" must be an array`);
+    }
+    return;
+  }
+
+  if (process.env.VERCEL) {
+    throw new Error('DATABASE_URL must be configured for the Vercel API deployment');
+  }
   if (state) return;
   if (!loading) {
     loading = (async () => {
@@ -192,6 +233,30 @@ async function persist(data) {
 function mutate(work) {
   const task = writeQueue.then(async () => {
     await load();
+    if (databasePool) {
+      const connection = await databasePool.connect();
+      try {
+        await connection.query('BEGIN');
+        const { rows } = await connection.query(
+          'SELECT data FROM reelearn_state WHERE id = 1 FOR UPDATE'
+        );
+        if (!rows[0]) throw new Error('PostgreSQL application state row is missing');
+        const draft = { ...emptyData(), ...rows[0].data };
+        const result = await work(draft);
+        await connection.query(
+          'UPDATE reelearn_state SET data = $1::jsonb WHERE id = 1',
+          [JSON.stringify(draft)]
+        );
+        await connection.query('COMMIT');
+        state = draft;
+        return clone(result);
+      } catch (error) {
+        await connection.query('ROLLBACK');
+        throw error;
+      } finally {
+        connection.release();
+      }
+    }
     const draft = clone(state);
     const result = await work(draft);
     await persist(draft);
@@ -483,7 +548,13 @@ function createClient(getData, runMutation, runQuery) {
     );
     return callback(transactionClient);
   });
-  client.$disconnect = async () => {};
+  client.$health = async () => {
+    await load();
+    return { storage: databasePool ? 'postgresql' : 'local-json' };
+  };
+  client.$disconnect = async () => {
+    if (databasePool) await databasePool.end();
+  };
   return client;
 }
 

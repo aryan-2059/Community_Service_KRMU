@@ -1,26 +1,42 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
+const { v2: cloudinary } = require('cloudinary');
 const prisma = require('../lib/prisma');
 const { requireRole } = require('../middleware/auth');
 
 const router = express.Router();
-const uploadDir = path.join(__dirname, '../../uploads/revision');
-fs.mkdirSync(uploadDir, { recursive: true });
 
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Use memory storage - files go to RAM, then we upload to Cloudinary
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: uploadDir,
-    filename: (req, file, callback) => callback(null, `${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`)
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 75 * 1024 * 1024 },
   fileFilter: (req, file, callback) => {
     if (/^(image\/|video\/)/.test(file.mimetype)) return callback(null, true);
     callback(new Error('Only image and video files are supported'));
   }
 });
+
+// Helper: upload buffer to Cloudinary
+const uploadToCloudinary = (buffer, mimetype) => {
+  return new Promise((resolve, reject) => {
+    const resourceType = mimetype.startsWith('video/') ? 'video' : 'image';
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: 'reelearn/revision', resource_type: resourceType },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    stream.end(buffer);
+  });
+};
 
 const getPost = (postId) => prisma.revisionPost.findUnique({
   where: { id: postId },
@@ -43,15 +59,13 @@ router.get('/subjects', async (req, res, next) => {
   }
 });
 
+// Media is now served directly from Cloudinary URLs stored in DB
+// This endpoint redirects to the Cloudinary URL for backward compat
 router.get('/media/:filename', async (req, res, next) => {
   try {
-    const filename = path.basename(req.params.filename);
-    if (filename !== req.params.filename) {
-      res.status(404);
-      throw new Error('Revision media not found');
-    }
+    const filename = req.params.filename;
     const post = await prisma.revisionPost.findFirst({
-      where: { mediaUrl: `/revision/media/${filename}` },
+      where: { mediaUrl: { contains: filename } },
       include: { subject: { include: { classroom: true } } }
     });
     if (!post) {
@@ -67,7 +81,8 @@ router.get('/media/:filename', async (req, res, next) => {
       res.status(403);
       throw new Error('Not authorized to view this revision media');
     }
-    res.sendFile(path.join(uploadDir, filename));
+    // Redirect to Cloudinary URL
+    res.redirect(post.mediaUrl);
   } catch (error) {
     next(error);
   }
@@ -121,7 +136,6 @@ router.post('/posts', requireRole('TEACHER'), upload.single('media'), async (req
   try {
     const { subjectId, title, content = '' } = req.body;
     if (!subjectId || !title?.trim() || (!content.trim() && !req.file)) {
-      if (req.file) fs.unlink(req.file.path, () => {});
       res.status(400);
       throw new Error('Choose a subject, add a title, and provide notes or media');
     }
@@ -129,18 +143,27 @@ router.post('/posts', requireRole('TEACHER'), upload.single('media'), async (req
       where: { id: subjectId, classroom: { teacherId: req.user.id } }
     });
     if (!subject) {
-      if (req.file) fs.unlink(req.file.path, () => {});
       res.status(403);
       throw new Error('Not authorized to post in this subject');
     }
+
+    let mediaUrl = null;
+    let mediaType = null;
+
+    if (req.file) {
+      const result = await uploadToCloudinary(req.file.buffer, req.file.mimetype);
+      mediaUrl = result.secure_url;
+      mediaType = req.file.mimetype.startsWith('image/') ? 'IMAGE' : 'VIDEO';
+    }
+
     const post = await prisma.revisionPost.create({
       data: {
         subjectId,
         createdById: req.user.id,
         title: title.trim(),
         content: content.trim(),
-        mediaUrl: req.file ? `/revision/media/${req.file.filename}` : null,
-        mediaType: req.file?.mimetype.startsWith('image/') ? 'IMAGE' : req.file ? 'VIDEO' : null
+        mediaUrl,
+        mediaType
       },
       include: { subject: { include: { classroom: { select: { id: true, name: true, section: true } } } }, createdBy: { select: { name: true } } }
     });
@@ -159,12 +182,11 @@ router.put('/posts/:postId/interaction', requireRole('STUDENT'), async (req, res
       res.status(404);
       throw new Error('Revision post not found');
     }
-    const { liked, saved, priority, understanding } = req.body;
     const data = {};
     for (const key of ['liked', 'saved', 'priority']) {
       if (typeof req.body[key] === 'boolean') data[key] = req.body[key];
     }
-    if (understanding === null || ['GOT_IT', 'REVIEW_AGAIN', 'CONFUSED'].includes(understanding)) data.understanding = understanding;
+    if (req.body.understanding === null || ['GOT_IT', 'REVIEW_AGAIN', 'CONFUSED'].includes(req.body.understanding)) data.understanding = req.body.understanding;
     if (!Object.keys(data).length) {
       res.status(400);
       throw new Error('No valid revision action provided');

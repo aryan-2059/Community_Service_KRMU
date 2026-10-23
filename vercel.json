@@ -1,28 +1,10 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "services": {
-    "client": {
-      "root": "client",
-      "framework": "vite"
-    },
-    "reelearn-server": {
-      "root": "server",
-      "framework": "express",
-      "buildCommand": "npm install && npx prisma generate && npx prisma migrate deploy"
-    }
-  },
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "client/dist",
+  "installCommand": "npm run install:all",
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": {
-        "service": "reelearn-server"
-      }
-    },
-    {
-      "source": "/(.*)",
-      "destination": {
-        "service": "client"
-      }
-    }
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

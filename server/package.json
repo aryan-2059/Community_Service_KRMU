@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "type": "commonjs",
   "scripts": {
-    "build": "npx prisma generate",
+    "build": "node --check src/app.js && node --check src/lib/store.js",
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
+    "test": "node --test",
     "seed": "node prisma/seed.js",
     "principal:create": "node prisma/create-principal.js"
   },
   "dependencies": {
-    "@prisma/client": "^5.15.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^1.41.3",
     "cors": "^2.8.5",
@@ -20,7 +20,6 @@
     "multer": "^2.4.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4",
-    "prisma": "^5.15.0"
+    "nodemon": "^3.1.4"
   }
 }

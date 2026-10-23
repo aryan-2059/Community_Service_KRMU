@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const prisma = require('./lib/prisma');
 const { verifyToken } = require('./middleware/auth');
 const errorHandler = require('./middleware/error');
 

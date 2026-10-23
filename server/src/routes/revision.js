@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const { v2: cloudinary } = require('cloudinary');
-const prisma = require('../lib/prisma');
+const prisma = require('../lib/store');
 const { requireRole } = require('../middleware/auth');
 
 const router = express.Router();

@@ -24,13 +24,24 @@ const allowedOrigins = [
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
-app.use(cors({
+const isSameOrigin = (origin, host) => {
+  try {
+    const parsedOrigin = new URL(origin);
+    return ['http:', 'https:'].includes(parsedOrigin.protocol) && parsedOrigin.host === host;
+  } catch {
+    return false;
+  }
+};
+
+app.use((req, res, next) => cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    if (!origin || allowedOrigins.includes(origin) || isSameOrigin(origin, req.get('host'))) {
+      return cb(null, true);
+    }
     cb(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true
-}));
+})(req, res, next));
 app.use(express.json());
 
 // Routes

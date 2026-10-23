@@ -2,7 +2,9 @@
 
 Teacher accounts created through registration remain pending until a principal approves them. Principal accounts cannot be created through public registration.
 
-After installing server dependencies and syncing the Prisma schema, create the first principal from PowerShell:
+After installing server dependencies, create the first principal from PowerShell.
+The current app stores records in its JSON store; this command creates the
+principal in the store selected by `JSON_STORE_PATH`.
 
 ```powershell
 Push-Location server

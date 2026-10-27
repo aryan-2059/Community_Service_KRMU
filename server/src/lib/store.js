@@ -148,14 +148,30 @@ let state;
 let loading;
 let databaseInitialization;
 let writeQueue = Promise.resolve();
-const databasePool = process.env.DATABASE_URL
+
+const databaseUrl = process.env.DATABASE_URL?.trim();
+const usePostgres = /^postgres(ql)?:\/\//i.test(databaseUrl || '');
+if (databaseUrl && !usePostgres) {
+  console.warn('DATABASE_URL is not a PostgreSQL URL; falling back to local JSON store.');
+}
+const databasePool = usePostgres
   ? new Pool({
-    connectionString: process.env.DATABASE_URL,
-    max: 2,
-    connectionTimeoutMillis: 10000,
-    idleTimeoutMillis: 10000
-  })
+      connectionString: databaseUrl,
+      max: 2,
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 10000
+    })
   : null;
+if (databasePool) databasePool.on('error', err => console.error('pg pool error', err.message));
+
+// const databasePool = process.env.DATABASE_URL
+//   ? new Pool({
+//     connectionString: process.env.DATABASE_URL,
+//     max: 2,
+//     connectionTimeoutMillis: 10000,
+//     idleTimeoutMillis: 10000
+//   })
+//   : null;
 
 const clone = value => JSON.parse(JSON.stringify(value));
 const valueOf = value => value instanceof Date ? value.toISOString() : value;

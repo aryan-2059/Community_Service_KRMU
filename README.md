@@ -32,6 +32,10 @@ npm run dev:server
 npm run dev:client
 ```
 
+For local PostgreSQL, copy `server/.env.example` to `server/.env` and set
+`DATABASE_URL`. Percent-encode any special characters in the database
+password before adding it to the connection string.
+
 Vite proxies local `/api` requests to the API on port 5000.
 
 ## Deployment limitations
